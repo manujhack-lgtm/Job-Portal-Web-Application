@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Job Portal Analytics Dashboard - ETL & OLAP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* PROFESSIONAL DARK MODE DESIGN */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Space+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            /* Dark background for a professional/console feel */
+            background-color: #1f2937; 
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 3rem 1rem;
+        }
+
+        .main-container {
+            /* Main card style - Lighter dark gray */
+            background-color: #2c3e50; 
+            padding: 2.5rem 3.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* Stronger shadow for depth */
+            max-width: 6xl;
+            width: 100%;
+            border: 1px solid #34495e;
+            color: #ecf0f1; /* Light text color */
+        }
+
+        .header-title {
+            color: #f39c12; /* Vibrant Orange for visibility */
+            border-bottom-color: #3498db; /* Blue highlight */
+        }
+
+        /* User Info Note */
+        #userInfo {
+            color: #e74c3c; /* Red for warnings */
+        }
+
+        /* Status Checkmark */
+        .checkmark {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background-color: #2ecc71; /* Success Green */
+            border-radius: 50%;
+            position: relative;
+            margin-left: 8px;
+        }
+        .checkmark:after {
+            content: '';
+            position: absolute;
+            left: 6px;
+            top: 3px;
+            width: 5px;
+            height: 10px;
+            border: solid #2c3e50; /* Dark inner check */
+            border-width: 0 3px 3px 0;
+            transform: rotate(45deg);
+        }
+        
+        /* Code output block styling (OLAP) */
+        .olap-output {
+            background-color: #1c2833; /* Very dark background for console */
+            color: #2ecc71; /* Green console text */
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #34495e; 
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            font-family: 'Space Mono', 'Consolas', monospace; /* Monospace font */
+            overflow-x: auto;
+            box-shadow: inset 0 0.5px 1.5px 0 rgba(0, 0, 0, 0.4);
+            font-size: 0.85rem;
+        }
+        
+        /* Process Log (matches OLAP output styling) */
+        #processLog {
+            background-color: #1c2833; 
+            border-color: #34495e;
+            color: #ecf0f1; /* Light gray text */
+            font-family: 'Space Mono', 'Consolas', monospace;
+        }
+
+        /* File Upload Slots */
+        .file-slot-bg {
+             background-color: #34495e; /* Dark blue-gray for file slots */
+             border-color: #4a637d;
+        }
+        .file-label-btn {
+            background-color: #3498db; /* Blue for primary action */
+        }
+
+        /* Metric Display */
+        #metricsDisplay {
+            background-color: #f1c40f33; /* Semi-transparent Gold */
+            color: #f1c40f; /* Gold text */
+            border-left-color: #f1c40f;
+        }
+
+        /* Style for the file preview table */
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+            margin-top: 10px;
+        }
+        .preview-table th, .preview-table td {
+            border: 1px solid #4a637d;
+            padding: 4px 6px;
+            text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #ecf0f1;
+        }
+        .preview-table th {
+            background-color: #34495e; 
+            font-weight: 600;
+            color: #f39c12; /* Orange header text */
+        }
+
+        /* NEW BUTTON STYLES - LIGHT BACKGROUND */
+        .btn-light-main {
+            color: #1f2937; /* Dark text on light button */
+            font-weight: 700;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease-in-out;
+            cursor: pointer;
+        }
+        .btn-light-main:hover:not(:disabled) {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+        .btn-light-main:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        
+        <h1 class="text-4xl font-extrabold text-center header-title mb-10 border-b-4 pb-4">
+            Job Portal Analytics Dashboard
+        </h1>
+
+        <div id="userInfo" class="text-sm text-right mb-4 font-semibold">
+            NOTE: Requires Python Flask Backend running on http://127.0.0.1:5000.
+            <br>
+        </div>
+
+        <div class="bg-gray-700 p-8 rounded-xl shadow-md border border-gray-600 mb-10">
+            <h2 class="text-2xl font-semibold text-white mb-6 text-center">Source Data Integration </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                
+                <div id="courseSlot" class="file-slot-bg flex flex-col items-center p-4 border rounded-lg shadow-sm">
+                    <label for="csvFile" class="file-label-btn w-full text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-600 transition duration-300 ease-in-out cursor-pointer text-center">
+                        Upload jobs.csv
+                    </label>
+                    <input type="file" id="csvFile" class="hidden" accept=".csv">
+                    <span id="csvStatus" class="mt-2 text-sm text-gray-400">Job Catalog Data...</span>
+                </div>
+                
+                <div id="userSlot" class="file-slot-bg flex flex-col items-center p-4 border rounded-lg shadow-sm">
+                    <label for="xlsFile" class="file-label-btn w-full text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-600 transition duration-300 ease-in-out cursor-pointer text-center">
+                        Upload candidates.xls
+                    </label>
+                    <input type="file" id="xlsFile" class="hidden" accept=".xls,.xlsx">
+                    <span id="xlsStatus" class="mt-2 text-sm text-gray-400">Candidate Profiles...</span>
+                </div>
+                
+                <div id="salesSlot" class="file-slot-bg flex flex-col items-center p-4 border rounded-lg shadow-sm">
+                    <label for="xlsxFile" class="file-label-btn w-full text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-600 transition duration-300 ease-in-out cursor-pointer text-center">
+                        Upload applications.xlsx
+                    </label>
+                    <input type="file" id="xlsxFile" class="hidden" accept=".xlsx">
+                    <span id="xlsxStatus" class="mt-2 text-sm text-gray-400">Transactional Data...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <button id="extractBtn" class="btn-light-main bg-gray-200 hover:bg-gray-300" disabled>
+                1. Review & Prepare Data
+            </button>
+            <button id="transformBtn" class="btn-light-main bg-blue-200 hover:bg-blue-300" disabled>
+                2. Transform & Roll-up Metrics
+            </button>
+            <button id="downloadBtn" class="btn-light-main bg-gray-400 hover:bg-gray-500" disabled>
+                Download Transformed Data
+            </button>
+        </div>
+
+        <div class="bg-blue-900 p-6 rounded-xl shadow-md border border-blue-700 mb-10">
+            <h3 class="text-xl font-bold text-blue-300 mb-4 text-center">
+                Dynamic OLAP Operations
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <button id="olapSequenceBtn" class="btn-light-main bg-blue-300 hover:bg-blue-400 font-extrabold" disabled>
+                    3. Run Dynamic OLAP Analysis
+                </button>
+                <button id="loadBtn" class="btn-light-main bg-green-400 hover:bg-green-500 font-extrabold" disabled>
+                    4. Confirm Data Persistence (Final Load)
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
+            <h2 class="text-2xl font-semibold text-white mb-5 text-center">Process Log & Analysis Results</h2>
+            
+            <div id="metricsDisplay" class="hidden p-3 mb-4 text-sm border-l-4 rounded-md font-medium">
+                <span class="font-bold">Transformation Summary:</span> <span id="metricTime"></span>ms execution time. <span id="metricRows"></span> records created. <span id="metricStatus"></span>
+            </div>
+
+            <div id="processLog" class="p-4 rounded-lg text-sm h-64 overflow-y-auto whitespace-pre-wrap">
+                [System] Initialization complete. Awaiting file uploads to begin ETL workflow.
+            </div>
+
+            <div id="olapResultDisplay" class="hidden mt-6 border-t pt-4 border-gray-700">
+                <h3 class="text-xl font-semibold text-orange-400 mb-2">1. Aggregate Portal Metrics (Roll-up)</h3>
+                <div class="olap-output" id="olapOutput"></div>
+            </div>
+
+            <div id="olapOperationsResult" class="hidden mt-8 border-t pt-4 border-gray-700">
+                <h3 class="text-xl font-semibold text-indigo-400 mb-2">Dynamic OLAP Query Results</h3>
+                <div class="olap-output" id="olapDynamicOutput">Awaiting specific OLAP operation...</div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script type="module">
+        
+        const BACKEND_URL = 'http://127.0.0.1:5000/api/load';
+        const DRILLDOWN_URL = 'http://127.0.0.1:5000/api/olap/drilldown';
+        const SLICE_URL = 'http://127.0.0.1:5000/api/olap/slice';
+        const DICE_URL = 'http://127.0.0.1:5000/api/olap/dice';
+
+        let pyodide;
+        let courseData = null; 
+        let userData = null;   
+        let salesData = null;  
+        let transformedData = null; 
+        
+        const processLog = document.getElementById('processLog');
+        const olapResultDisplay = document.getElementById('olapResultDisplay');
+        const olapOutput = document.getElementById('olapOutput');
+        const olapOperationsResult = document.getElementById('olapOperationsResult');
+        const olapDynamicOutput = document.getElementById('olapDynamicOutput');
+        
+        const extractBtn = document.getElementById('extractBtn');
+        const transformBtn = document.getElementById('transformBtn');
+        const loadBtn = document.getElementById('loadBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        const olapSequenceBtn = document.getElementById('olapSequenceBtn');
+        
+        const metricsDisplay = document.getElementById('metricsDisplay');
+        const metricTime = document.getElementById('metricTime');
+        const metricRows = document.getElementById('metricRows');
+        const metricStatus = document.getElementById('metricStatus');
+        
+        const courseSlot = document.getElementById('courseSlot');
+        const userSlot = document.getElementById('userSlot');
+        const salesSlot = document.getElementById('salesSlot');
+
+
+        // --- UTILITY FUNCTIONS --- 
+
+        function escapeHTML(str) {
+            if (typeof str !== 'string') return str;
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function log(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            let color = 'text-gray-300'; // Default text color for the dark log
+            if (type === 'success') color = 'text-green-400 font-medium';
+            if (type === 'error') color = 'text-red-400 font-medium';
+            if (type === 'stage') color = 'text-blue-400 font-medium';
+            
+            if (processLog.textContent.includes('Awaiting file uploads to begin ETL workflow.')) {
+                processLog.textContent = ''; 
+            }
+            
+            const logEntry = document.createElement('p');
+            logEntry.className = color;
+            logEntry.innerHTML = `[${time}] ${escapeHTML(message)}`;
+            
+            processLog.appendChild(logEntry);
+            processLog.scrollTop = processLog.scrollHeight;
+        }
+
+        function checkAllFilesLoaded() {
+            if (courseData && userData && salesData) {
+                extractBtn.disabled = false;
+                log('All source files ready. Click 1. Review & Prepare Data to begin workflow.', 'success');
+            } else {
+                extractBtn.disabled = true;
+            }
+        }
+
+        function createPreviewTable(csvString, slotElement) {
+             const existingTable = slotElement.querySelector('.preview-table-container');
+             if (existingTable) existingTable.remove();
+             
+             const lines = csvString.trim().split('\n');
+             if (lines.length < 2) return;
+
+             const headers = lines[0].split(',').map(h => escapeHTML(h.trim().replace(/"/g, '')));
+             const previewLines = lines.slice(1, 5); 
+
+             let html = '<table class="preview-table">';
+             
+             html += '<thead><tr>';
+             headers.slice(0, 4).forEach(h => html += `<th>${h}</th>`); 
+             html += '</tr></thead>';
+
+             html += '<tbody>';
+             previewLines.forEach(line => {
+                 const cols = line.split(',').map(c => escapeHTML(c.trim().replace(/"/g, '')));
+                 html += '<tr>';
+                 cols.slice(0, 4).forEach(c => html += `<td>${c}</td>`);
+                 html += '</tr>';
+             });
+             html += '</tbody></table>';
+
+             const tableContainer = document.createElement('div');
+             tableContainer.classList.add('w-full', 'mt-3', 'max-h-32', 'overflow-y-auto', 'preview-table-container');
+             slotElement.appendChild(tableContainer);
+             tableContainer.innerHTML = html; 
+        }
+
+        function readFileAsCsvString(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                const fileName = file.name.toLowerCase();
+                const isExcel = fileName.endsWith('.xls') || fileName.endsWith('.xlsx');
+
+                reader.onload = (e) => {
+                    try {
+                        let csvString = '';
+                        if (isExcel) {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const sheetName = workbook.SheetNames[0];
+                            if (sheetName) {
+                                csvString = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+                                if (csvString.trim().length === 0) throw new Error('Empty content.');
+                            } else {
+                                throw new Error('No readable sheets.');
+                            }
+                        } else {
+                            csvString = e.target.result;
+                        }
+                        resolve(csvString);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = () => reject(reader.error);
+                if (isExcel) reader.readAsArrayBuffer(file);
+                else reader.readAsText(file);
+            });
+        }
+
+
+        // --- ETL STAGE FUNCTIONS ---
+
+        async function extractData() {
+            log('!!STAGE: 1. Review & Prepare Data Initiated!!', 'stage');
+            extractBtn.disabled = true;
+            transformBtn.disabled = true; 
+            
+            if (courseData && userData && salesData) {
+                 log('Data Review complete. Data is prepared for transformation and Aggregation.', 'info');
+                 transformBtn.disabled = false;
+            } else {
+                 log('Data Review failed: Some data is missing. Please re-upload.', 'error');
+                 extractBtn.disabled = false;
+            }
+        }
+
+        async function transformData() {
+            log('!!STAGE: 2. Transformation & Roll-up Metrics Initiated!!', 'stage');
+            transformBtn.disabled = true;
+            loadBtn.disabled = true;
+            downloadBtn.disabled = true; 
+            olapSequenceBtn.disabled = true;
+            metricsDisplay.classList.add('hidden');
+            olapDynamicOutput.textContent = 'Awaiting specific OLAP operation...';
+            olapOperationsResult.classList.add('hidden');
+
+
+            const startTime = performance.now(); 
+
+            try {
+                // Write data to the Pyodide virtual file system
+                pyodide.FS.writeFile("jobs.csv", courseData, { encoding: "utf8" });
+                pyodide.FS.writeFile("candidates.csv", userData, { encoding: "utf8" });
+                pyodide.FS.writeFile("applications.csv", salesData, { encoding: "utf8" });
+
+                const pythonCode = `
+import pandas as pd
+import json
+
+# Read data from the virtual file system
+jobs_df = pd.read_csv("jobs.csv")
+candidates_df = pd.read_csv("candidates.csv")
+applications_df = pd.read_csv("applications.csv")
+
+# Ensure keys are strings for robust merging
+applications_df['user_id'] = applications_df['user_id'].astype(str).str.strip()
+candidates_df['user_id'] = candidates_df['user_id'].astype(str).str.strip()
+jobs_df['course_id'] = jobs_df['course_id'].astype(str).str.strip()
+applications_df['course_id'] = applications_df['course_id'].astype(str).str.strip()
+
+# 1. Merge datasets
+merged_df = applications_df.merge(candidates_df, on='user_id', how='left')
+merged_df = merged_df.merge(jobs_df, on='course_id', how='left')
+
+# Mapping and Recalculation (as per backend model)
+merged_df = merged_df.rename(columns={
+    'user_id': 'candidate_id', 
+    'course_id': 'job_id', 
+    'discount_offer': 'experience_years', 
+    'course_name': 'job_role', 
+    'price_before_discount': 'expected_salary', 
+    'user_name': 'candidate_name', 
+    'country': 'location', 
+    'price_after_discount': 'application_score' 
+})
+
+merged_df['application_score'] = merged_df['expected_salary'] * (1 - merged_df['experience_years'])
+
+
+null_count = merged_df.isnull().sum().sum()
+
+# 3. Final ETL output selection and cleaning (using new column names)
+etl_output = merged_df[[
+    'candidate_id', 'job_id', 'experience_years', 'job_role',
+    'expected_salary', 'candidate_name', 'location', 'application_score'
+]].fillna({
+    'candidate_name': 'Unknown Candidate',
+    'location': 'Unknown',
+    'job_role': 'Unknown Role'
+})
+
+# 4. OLAP Analysis (Roll-up/Pivot)
+olap_cube = etl_output.pivot_table(
+    index='location',
+    columns='job_role',
+    values='application_score',
+    aggfunc='sum',
+    fill_value=0
+)
+
+olap_cube['Total Score (Location)'] = olap_cube.sum(axis=1).round(2)
+olap_cube.loc['Total Score (Role)', :] = olap_cube.sum(axis=0).round(2)
+olap_cube = olap_cube.round(2)
+
+json.dumps({
+    "transformed_data": etl_output.to_json(orient='records'),
+    "olap_report": olap_cube.to_string(),
+    "null_imputed": int(null_count),
+    "records_count": len(etl_output.index)
+})
+`;
+                const result = await pyodide.runPythonAsync(pythonCode);
+                const resultObj = JSON.parse(result);
+
+                const endTime = performance.now(); 
+                const duration = (endTime - startTime).toFixed(2);
+                
+                transformedData = JSON.parse(resultObj.transformed_data);
+                
+                log('TRANSFORMATION SUCCESS: Roll-up Report Generated. Data is ready for Load.', 'success');
+                olapOutput.textContent = resultObj.olap_report; 
+                olapResultDisplay.classList.remove('hidden');
+                
+                // Display Metrics
+                metricTime.textContent = `${duration}`;
+                metricRows.textContent = `${resultObj.records_count.toLocaleString()}`;
+                metricStatus.textContent = `(${resultObj.null_imputed.toLocaleString()} null values imputed)`;
+                metricsDisplay.classList.remove('hidden');
+
+                // 1. Perform background load immediately to enable OLAP sequence functionality
+                await backgroundLoadData();
+                
+                // 2. Enable the OLAP Sequence button and Download utility
+                olapSequenceBtn.disabled = false;
+                downloadBtn.disabled = false; 
+                
+                extractBtn.disabled = false; 
+            } catch (error) {
+                log(`TRANSFORMATION FAILED: ${error.message}`, 'error');
+                olapResultDisplay.classList.add('hidden');
+                metricsDisplay.classList.add('hidden');
+                extractBtn.disabled = false;
+            }
+        }
+        
+        // This is the function that actually puts data into the database
+        async function backgroundLoadData() {
+            if (!transformedData || transformedData.length === 0) {
+                log('Error: No transformed data available for background load.', 'error');
+                return;
+            }
+
+            log(`[Background] Attempting to load ${transformedData.length} records to DB to enable OLAP queries...`, 'info');
+            
+            try {
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transformedData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    log(`[Background] DB Load Success: Data is now available for OLAP queries.`, 'success');
+                    return true;
+                } else {
+                    const message = result.message || 'Server returned an unknown error.';
+                    log(`[Background] DB Load FAILED: OLAP queries will fail. Error: ${message}`, 'error');
+                    return false;
+                }
+                
+            } catch (error) {
+                log(`[Background] NETWORK ERROR: Could not connect to backend for loading. OLAP sequence will fail. Error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+
+        // Final LOAD button action (visual confirmation)
+        async function confirmDataPersistence() {
+             log('!!STAGE: 4. Data Persistence Confirmed!!', 'stage');
+             loadBtn.disabled = true;
+             
+             // This step is purely visual now, as the actual data loading happened in the background.
+             log('Final Load/Persist step acknowledged.', 'success');
+        }
+        
+        // --- OLAP Operation Runner --- 
+        
+        async function runOlapQuery(url, operationName, payload = {}) {
+            log(`- Executing OLAP operation: ${operationName}...`, 'stage');
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                
+                const currentContent = olapDynamicOutput.textContent.includes('Awaiting') ? '' : olapDynamicOutput.textContent + '\n\n' + '-'.repeat(80) + '\n\n';
+
+                if (response.ok && result.status === 'success') {
+                    log(`${operationName} SUCCESS: Report generated.`, 'success');
+                    olapDynamicOutput.textContent = currentContent + result.report;
+                    return true;
+                } else {
+                    log(`${operationName} FAILED: Backend Error: ${result.message}`, 'error');
+                    olapDynamicOutput.textContent = currentContent + `Error running ${operationName}: ${result.message}`;
+                    return false;
+                }
+            } catch (error) {
+                log(`NETWORK ERROR: Could not connect to backend for ${operationName}. Ensure Flask server is running and data was successfully loaded in the background.`, 'error');
+                olapDynamicOutput.textContent = `Network Error running ${operationName}: ${error.message}. Ensure Flask server is running and data was successfully loaded in the background.`;
+                return false;
+            }
+        }
+        
+        async function runAllOlapSequence() {
+            log('!!STAGE: 3. Running Dynamic OLAP Sequence (Drill-down, Slice, Dice)!!', 'stage');
+            olapSequenceBtn.disabled = true;
+            loadBtn.disabled = true; 
+            
+            olapDynamicOutput.textContent = 'Starting Drill-down...';
+            olapOperationsResult.classList.remove('hidden');
+
+            let success = true;
+
+            // 2. Drill-down 
+            success = await runOlapQuery(DRILLDOWN_URL, 'Drill-down (London Applications by Candidate)', { location: 'London' });
+            if (!success) { olapSequenceBtn.disabled = false; return; }
+            
+            // 3. Slice 
+            success = await runOlapQuery(SLICE_URL, 'Slice (Data Engineer Applications by Location)', { job_role: 'Data Engineer' });
+            if (!success) { olapSequenceBtn.disabled = false; return; }
+
+            // 4. Dice 
+            success = await runOlapQuery(DICE_URL, 'Dice (SF/NY Applications with 3+ Years Experience)');
+            
+            if (success) {
+                log('All dynamic OLAP operations completed successfully.', 'success');
+                loadBtn.disabled = false; // Enable final LOAD button
+            } else {
+                log('Dynamic OLAP sequence stopped due to an error.', 'error');
+            }
+
+            olapSequenceBtn.disabled = false;
+        }
+
+
+        // --- INIT & EVENT LISTENERS ---
+
+        function handleDownload() {
+            if (!transformedData || transformedData.length === 0) {
+                log("Error: No transformed data to download.", 'error');
+                return;
+            }
+
+            const header = Object.keys(transformedData[0]).join(',') + '\n';
+            const rows = transformedData.map(obj => Object.values(obj).join(',')).join('\n');
+            const csvContent = header + rows;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", "etl_job_portal_transformed_data.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            log("ETL output downloaded successfully.", 'info');
+        }
+
+        async function initPyodide() {
+            log('Initializing Pyodide (in-browser Python environment)...', 'info');
+            pyodide = await loadPyodide();
+            await pyodide.loadPackage(['pandas']);
+            log('Pyodide and Pandas ready. Python functions are now available.', 'success');
+        }
+        
+        // Initializer
+        initPyodide();
+
+        // File Input Listeners
+        document.getElementById('csvFile').addEventListener('change', async (e) => {
+            if (!e.target.files.length) return;
+            const file = e.target.files[0];
+            const slot = document.getElementById('csvStatus');
+            try {
+                courseData = await readFileAsCsvString(file);
+                slot.innerHTML = `<span class='text-green-400 font-bold'>Loaded: jobs.csv</span><span class="checkmark"></span>`;
+                createPreviewTable(courseData, courseSlot);
+            } catch (error) {
+                log(`Error loading jobs.csv: ${error.message}`, 'error');
+                courseData = null;
+                slot.textContent = 'Failed to load.';
+            }
+            checkAllFilesLoaded();
+        });
+
+        document.getElementById('xlsFile').addEventListener('change', async (e) => {
+            if (!e.target.files.length) return;
+            const file = e.target.files[0];
+            const slot = document.getElementById('xlsStatus');
+            try {
+                userData = await readFileAsCsvString(file);
+                slot.innerHTML = `<span class='text-green-400 font-bold'>Loaded: candidates.xls</span><span class="checkmark"></span>`;
+                createPreviewTable(userData, userSlot);
+            } catch (error) {
+                log(`Error loading candidates.xls: ${error.message}`, 'error');
+                userData = null;
+                slot.textContent = 'Failed to load.';
+            }
+            checkAllFilesLoaded();
+        });
+
+        document.getElementById('xlsxFile').addEventListener('change', async (e) => {
+            if (!e.target.files.length) return;
+            const file = e.target.files[0];
+            const slot = document.getElementById('xlsxStatus');
+            try {
+                salesData = await readFileAsCsvString(file);
+                slot.innerHTML = `<span class='text-green-400 font-bold'>Loaded: applications.xlsx</span><span class="checkmark"></span>`;
+                createPreviewTable(salesData, salesSlot);
+            } catch (error) {
+                log(`Error loading applications.xlsx: ${error.message}`, 'error');
+                salesData = null;
+                slot.textContent = 'Failed to load.';
+            }
+            checkAllFilesLoaded();
+        });
+
+
+        // Main Button Listeners
+        extractBtn.addEventListener('click', extractData);
+        transformBtn.addEventListener('click', transformData);
+        loadBtn.addEventListener('click', confirmDataPersistence);
+        downloadBtn.addEventListener('click', handleDownload);
+        
+        // Sequential OLAP Listener
+        olapSequenceBtn.addEventListener('click', runAllOlapSequence);
+    </script>
+</body>
+</html>
