@@ -1,1 +1,0 @@
-select * from etl_data;
